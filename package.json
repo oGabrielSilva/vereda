@@ -2,7 +2,7 @@
   "name": "vereda",
   "packageManager": "yarn@4.6.0",
   "type": "module",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "license": "MIT",
   "description": "Declarative interactive CLI builder over @clack/core. Define a menu config, get a navigable arrow-key UI with safe action execution and argv routing.",
   "author": "Gabriel Silva",
@@ -76,5 +76,8 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.4",
     "vitest": "^4.1.6"
+  },
+  "optionalDependencies": {
+    "node-pty": "^1.1.0"
   }
 }
