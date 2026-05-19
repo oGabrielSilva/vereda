@@ -25,13 +25,12 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "dist",
-    "rootDir": "src",
 
     "skipLibCheck": true,
     "ignoreDeprecations": "6.0",
 
     "types": ["node"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "test", "examples"]
+  "include": ["src/**/*", "test/**/*"],
+  "exclude": ["node_modules", "dist", "examples"]
 }
