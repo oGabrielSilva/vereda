@@ -31,6 +31,6 @@
 
     "types": ["node"]
   },
-  "include": ["src/**/*", "test/**/*"],
-  "exclude": ["node_modules", "dist", "examples"]
+  "include": ["src/**/*", "test/**/*", "examples/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

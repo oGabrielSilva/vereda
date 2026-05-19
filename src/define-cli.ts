@@ -38,8 +38,12 @@ export function defineCLI<const T extends CLIConfig>(config: T): T {
  *
  * The `const A` type parameter narrows `args` to its literal shape, so the
  * `action` callback's `ctx.args` reflects the exact arg types declared at the leaf.
+ *
+ * The return type widens back to `MenuLeaf<ArgsSchema>` so the wrapped leaf
+ * fits inside `MenuNode` arrays (the variance with action's `ctx` parameter
+ * otherwise blocks narrow-to-wide assignment).
  */
-export function defineMenuItem<const A extends ArgsSchema>(item: MenuLeaf<A>): MenuLeaf<A> {
+export function defineMenuItem<const A extends ArgsSchema>(item: MenuLeaf<A>): MenuLeaf<ArgsSchema> {
   return item;
 }
 

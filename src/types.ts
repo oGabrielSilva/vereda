@@ -92,14 +92,18 @@ export type CliMode = 'auto' | 'interactive-only' | 'argv-only';
 
 /**
  * Leaf node: terminates with an action callback.
+ *
  * `args` and `action` types co-vary so `ctx.args` is inferred per-leaf.
+ * `action` is declared with method syntax so TypeScript treats its parameter
+ * as bivariant — a leaf with a narrow args schema remains assignable to the
+ * broader `MenuNode` union used inside `menu` arrays.
  */
 export interface MenuLeaf<A extends ArgsSchema = ArgsSchema> {
   readonly label: string;
   readonly hint?: string;
   readonly command: string;
   readonly args?: A;
-  readonly action: (ctx: ActionContext<A>) => Promise<void> | void;
+  action(ctx: ActionContext<A>): Promise<void> | void;
 }
 
 /**
