@@ -51,6 +51,8 @@ export { run } from './runtime/run.js';
 
 export type {
   ActionContext,
+  ActionErrorContext,
+  ActionErrorHandler,
   ActionLog,
   ActionSpinner,
   ArgDef,
@@ -60,6 +62,7 @@ export type {
   ColorName,
   Colorizer,
   InferArgs,
+  InteractiveBehavior,
   KeyAction,
   MenuBranch,
   MenuLeaf,

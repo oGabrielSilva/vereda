@@ -1,19 +1,24 @@
 import { confirm, isCancel, select, text } from '@clack/prompts';
 import { isMenuCancel, runMenuSelect, type MenuOption } from '../renderer/menu-select.js';
 import type { ResolvedTheme } from '../theme/apply.js';
-import type { ArgDef, ArgsSchema, MenuLeaf, MenuNode, ThemeConfig } from '../types.js';
+import type {
+  ActionErrorHandler,
+  ArgDef,
+  ArgsSchema,
+  InteractiveBehavior,
+  MenuLeaf,
+  MenuNode,
+  ThemeConfig,
+} from '../types.js';
 import { createCtx } from './action-ctx.js';
 
 export type NavigationResult =
   | { readonly kind: 'completed'; readonly command: string }
+  | { readonly kind: 'action-error'; readonly command: string; readonly error: unknown }
   | { readonly kind: 'exited' }
   | { readonly kind: 'cancelled' };
 
-type LevelResult =
-  | { readonly kind: 'completed'; readonly command: string }
-  | { readonly kind: 'exited' }
-  | { readonly kind: 'cancelled' }
-  | { readonly kind: 'back' };
+type LevelResult = NavigationResult | { readonly kind: 'back' };
 
 const BACK = Symbol('vereda.back');
 const EXIT = Symbol('vereda.exit');
@@ -25,6 +30,8 @@ export interface NavigateMenuOptions {
   readonly theme: ResolvedTheme;
   readonly themeConfig?: ThemeConfig;
   readonly rootMessage?: string;
+  readonly interactive?: InteractiveBehavior;
+  readonly onActionError?: ActionErrorHandler;
 }
 
 export async function navigateMenu(opts: NavigateMenuOptions): Promise<NavigationResult> {
@@ -58,15 +65,41 @@ async function navigateLevel(
     }
 
     const collected = await collectArgs(node);
-    if (collected === 'cancelled') return { kind: 'cancelled' };
+    if (collected === 'cancelled') {
+      // User backed out of arg collection — return to this menu, do not exit.
+      continue;
+    }
 
     const cliCtx = createCtx({
       command: node.command,
       args: collected,
       ...(opts.themeConfig !== undefined ? { theme: opts.themeConfig } : {}),
     });
-    await node.action(cliCtx);
-    return { kind: 'completed', command: node.command };
+
+    const mode: InteractiveBehavior = opts.interactive ?? 'loop';
+
+    try {
+      await node.action(cliCtx);
+    } catch (err) {
+      if (opts.onActionError !== undefined) {
+        try {
+          await opts.onActionError(err, { command: node.command, args: collected });
+        } catch {
+          // A throwing error handler should never crash the menu.
+        }
+      } else {
+        process.stderr.write(`${opts.theme.messages.error}\n`);
+      }
+      if (mode === 'one-shot') {
+        return { kind: 'action-error', command: node.command, error: err };
+      }
+      continue;
+    }
+
+    if (mode === 'one-shot') {
+      return { kind: 'completed', command: node.command };
+    }
+    continue;
   }
 }
 

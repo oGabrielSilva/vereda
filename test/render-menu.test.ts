@@ -43,15 +43,36 @@ beforeEach(() => {
   mocks.isCancel.mockImplementation((v: unknown) => v === cancelSym);
 });
 
-describe('navigateMenu — root level', () => {
+/**
+ * Helper: queue picks for runMenuSelect. After the queue is empty, the mock
+ * returns the menu's last option (which is Sair at root and Voltar in submenus),
+ * so any test that doesn't explicitly exit still terminates.
+ */
+function queuePicks(...picks: unknown[]): void {
+  const queue = [...picks];
+  mocks.runMenuSelect.mockImplementation(
+    ({ options }: { options: { value: unknown }[] }) => {
+      if (queue.length > 0) {
+        return Promise.resolve(queue.shift());
+      }
+      // Default: pick the last option (Sair at root, Voltar in submenus).
+      return Promise.resolve(options[options.length - 1]?.value);
+    },
+  );
+}
+
+describe('navigateMenu — one-shot mode (legacy: terminates after one action)', () => {
   it('runs the action when user picks a leaf', async () => {
     const action = vi.fn();
     const leaf: MenuNode = { label: 'Build', command: 'build', action };
 
-    // First call returns the leaf node
-    mocks.runMenuSelect.mockResolvedValueOnce(leaf);
+    queuePicks(leaf);
 
-    const result = await navigateMenu({ menu: [leaf], theme: baseTheme });
+    const result = await navigateMenu({
+      menu: [leaf],
+      theme: baseTheme,
+      interactive: 'one-shot',
+    });
 
     expect(result).toEqual({ kind: 'completed', command: 'build' });
     expect(action).toHaveBeenCalledOnce();
@@ -59,21 +80,23 @@ describe('navigateMenu — root level', () => {
 
   it('returns "exited" when user picks the Sair option', async () => {
     const leaf: MenuNode = { label: 'X', command: 'x', action: vi.fn() };
-
-    // mock returns the EXIT sentinel by capturing the last option's value
-    mocks.runMenuSelect.mockImplementationOnce(({ options }: { options: { value: unknown }[] }) => {
-      const exit = options[options.length - 1];
-      return Promise.resolve(exit?.value);
+    queuePicks(); // no queue → default picks Sair
+    const result = await navigateMenu({
+      menu: [leaf],
+      theme: baseTheme,
+      interactive: 'one-shot',
     });
-
-    const result = await navigateMenu({ menu: [leaf], theme: baseTheme });
     expect(result).toEqual({ kind: 'exited' });
   });
 
   it('returns "cancelled" when user cancels at root', async () => {
     const leaf: MenuNode = { label: 'X', command: 'x', action: vi.fn() };
-    mocks.runMenuSelect.mockResolvedValueOnce(cancelSym);
-    const result = await navigateMenu({ menu: [leaf], theme: baseTheme });
+    queuePicks(cancelSym);
+    const result = await navigateMenu({
+      menu: [leaf],
+      theme: baseTheme,
+      interactive: 'one-shot',
+    });
     expect(result).toEqual({ kind: 'cancelled' });
   });
 });
@@ -88,11 +111,13 @@ describe('navigateMenu — submenu navigation', () => {
     };
     const branch: MenuNode = { label: 'Settings', children: [innerLeaf] };
 
-    mocks.runMenuSelect
-      .mockResolvedValueOnce(branch) // root: user picks branch
-      .mockResolvedValueOnce(innerLeaf); // submenu: user picks inner leaf
+    queuePicks(branch, innerLeaf);
 
-    const result = await navigateMenu({ menu: [branch], theme: baseTheme });
+    const result = await navigateMenu({
+      menu: [branch],
+      theme: baseTheme,
+      interactive: 'one-shot',
+    });
 
     expect(result).toEqual({ kind: 'completed', command: 'config:edit' });
     expect(innerAction).toHaveBeenCalledOnce();
@@ -105,39 +130,48 @@ describe('navigateMenu — submenu navigation', () => {
     const branch: MenuNode = { label: 'Group', children: [leafB] };
 
     let call = 0;
-    mocks.runMenuSelect.mockImplementation(({ options }: { options: { value: unknown }[] }) => {
-      call++;
-      switch (call) {
-        case 1:
-          return Promise.resolve(branch); // root: pick the branch
-        case 2: {
-          // submenu: pick the "Voltar" option (the last one, since depth>0)
-          const back = options[options.length - 1];
-          return Promise.resolve(back?.value);
+    mocks.runMenuSelect.mockImplementation(
+      ({ options }: { options: { value: unknown }[] }) => {
+        call++;
+        switch (call) {
+          case 1:
+            return Promise.resolve(branch);
+          case 2: {
+            // submenu: pick "Voltar" (last option at depth > 0)
+            return Promise.resolve(options[options.length - 1]?.value);
+          }
+          case 3:
+            return Promise.resolve(leafA);
+          default:
+            throw new Error('unexpected call');
         }
-        case 3:
-          return Promise.resolve(leafA); // root: pick leafA
-        default:
-          throw new Error('unexpected call');
-      }
-    });
+      },
+    );
 
-    const result = await navigateMenu({ menu: [branch, leafA], theme: baseTheme });
+    const result = await navigateMenu({
+      menu: [branch, leafA],
+      theme: baseTheme,
+      interactive: 'one-shot',
+    });
     expect(result).toEqual({ kind: 'completed', command: 'a' });
     expect(action).toHaveBeenCalledOnce();
   });
 
-  it('cancellation in submenu propagates to root as cancelled', async () => {
+  it('cancellation in submenu propagates as cancelled', async () => {
     const leafA: MenuNode = { label: 'A', command: 'a', action: vi.fn() };
     const branch: MenuNode = { label: 'Group', children: [leafA] };
 
-    mocks.runMenuSelect.mockResolvedValueOnce(branch).mockResolvedValueOnce(cancelSym);
-    const result = await navigateMenu({ menu: [branch], theme: baseTheme });
+    queuePicks(branch, cancelSym);
+    const result = await navigateMenu({
+      menu: [branch],
+      theme: baseTheme,
+      interactive: 'one-shot',
+    });
     expect(result).toEqual({ kind: 'cancelled' });
   });
 });
 
-describe('navigateMenu — args collection', () => {
+describe('navigateMenu — args collection (one-shot)', () => {
   it('collects boolean arg before running action', async () => {
     const action = vi.fn();
     const leaf: MenuNode = {
@@ -147,10 +181,14 @@ describe('navigateMenu — args collection', () => {
       action,
     };
 
-    mocks.runMenuSelect.mockResolvedValueOnce(leaf);
+    queuePicks(leaf);
     mocks.confirm.mockResolvedValueOnce(true);
 
-    const result = await navigateMenu({ menu: [leaf], theme: baseTheme });
+    const result = await navigateMenu({
+      menu: [leaf],
+      theme: baseTheme,
+      interactive: 'one-shot',
+    });
 
     expect(result.kind).toBe('completed');
     expect(action).toHaveBeenCalledOnce();
@@ -167,17 +205,21 @@ describe('navigateMenu — args collection', () => {
       action,
     };
 
-    mocks.runMenuSelect.mockResolvedValueOnce(leaf);
+    queuePicks(leaf);
     mocks.text.mockResolvedValueOnce('data.json');
 
-    const result = await navigateMenu({ menu: [leaf], theme: baseTheme });
+    const result = await navigateMenu({
+      menu: [leaf],
+      theme: baseTheme,
+      interactive: 'one-shot',
+    });
 
     expect(result.kind).toBe('completed');
     const ctx = action.mock.calls[0]?.[0] as { args: Record<string, unknown> };
     expect(ctx.args).toEqual({ file: 'data.json' });
   });
 
-  it('cancels when user aborts arg prompt', async () => {
+  it('returns to menu (does not exit) when user aborts arg prompt', async () => {
     const action = vi.fn();
     const leaf: MenuNode = {
       label: 'X',
@@ -186,12 +228,18 @@ describe('navigateMenu — args collection', () => {
       action,
     };
 
-    mocks.runMenuSelect.mockResolvedValueOnce(leaf);
+    // 1st pick: user selects the leaf. text returns cancel → arg collection aborts.
+    // 2nd pick: default impl picks Sair to terminate.
+    queuePicks(leaf);
     mocks.text.mockResolvedValueOnce(cancelSym);
 
-    const result = await navigateMenu({ menu: [leaf], theme: baseTheme });
+    const result = await navigateMenu({
+      menu: [leaf],
+      theme: baseTheme,
+      interactive: 'loop', // loop mode: terminates only via Sair
+    });
 
-    expect(result).toEqual({ kind: 'cancelled' });
+    expect(result).toEqual({ kind: 'exited' });
     expect(action).not.toHaveBeenCalled();
   });
 
@@ -204,16 +252,20 @@ describe('navigateMenu — args collection', () => {
       action,
     };
 
-    mocks.runMenuSelect.mockResolvedValueOnce(leaf);
+    queuePicks(leaf);
     mocks.select.mockResolvedValueOnce('prod');
 
-    await navigateMenu({ menu: [leaf], theme: baseTheme });
+    await navigateMenu({
+      menu: [leaf],
+      theme: baseTheme,
+      interactive: 'one-shot',
+    });
 
     const ctx = action.mock.calls[0]?.[0] as { args: Record<string, unknown> };
     expect(ctx.args).toEqual({ env: 'prod' });
   });
 
-  it('treats empty required string as cancellation', async () => {
+  it('treats empty required string as arg cancellation (loops back to menu)', async () => {
     const action = vi.fn();
     const leaf: MenuNode = {
       label: 'X',
@@ -222,11 +274,110 @@ describe('navigateMenu — args collection', () => {
       action,
     };
 
-    mocks.runMenuSelect.mockResolvedValueOnce(leaf);
+    queuePicks(leaf);
     mocks.text.mockResolvedValueOnce('');
 
-    const result = await navigateMenu({ menu: [leaf], theme: baseTheme });
-    expect(result).toEqual({ kind: 'cancelled' });
+    const result = await navigateMenu({
+      menu: [leaf],
+      theme: baseTheme,
+      interactive: 'loop',
+    });
+
+    // Loop: after arg cancellation, default mock picks Sair → exited.
+    expect(result).toEqual({ kind: 'exited' });
     expect(action).not.toHaveBeenCalled();
+  });
+});
+
+describe('navigateMenu — loop mode (default)', () => {
+  it('after a successful action, returns to the menu (does not exit)', async () => {
+    const action = vi.fn();
+    const leaf: MenuNode = { label: 'Build', command: 'build', action };
+
+    // 1st pick: leaf (action runs)
+    // 2nd pick: leaf again (action runs again)
+    // 3rd pick: default (Sair)
+    queuePicks(leaf, leaf);
+
+    const result = await navigateMenu({ menu: [leaf], theme: baseTheme });
+
+    expect(result).toEqual({ kind: 'exited' });
+    expect(action).toHaveBeenCalledTimes(2);
+  });
+
+  it('action that throws does NOT exit the loop; onActionError fires', async () => {
+    const onActionError = vi.fn();
+    const leaf: MenuNode = {
+      label: 'Boom',
+      command: 'boom',
+      action: () => {
+        throw new Error('internal failure xyz');
+      },
+    };
+
+    queuePicks(leaf, leaf); // pick boom twice, then Sair
+
+    const result = await navigateMenu({
+      menu: [leaf],
+      theme: baseTheme,
+      onActionError,
+    });
+
+    expect(result).toEqual({ kind: 'exited' });
+    expect(onActionError).toHaveBeenCalledTimes(2);
+    const firstCall = onActionError.mock.calls[0] as [unknown, { command: string; args: Record<string, unknown> }];
+    expect(firstCall[0]).toBeInstanceOf(Error);
+    expect(firstCall[1].command).toBe('boom');
+  });
+
+  it('a throwing onActionError handler does not crash the menu', async () => {
+    const leaf: MenuNode = {
+      label: 'Boom',
+      command: 'boom',
+      action: () => {
+        throw new Error('first');
+      },
+    };
+    const onActionError = vi.fn(() => {
+      throw new Error('handler also crashed');
+    });
+
+    queuePicks(leaf);
+    const result = await navigateMenu({
+      menu: [leaf],
+      theme: baseTheme,
+      onActionError,
+    });
+
+    expect(result).toEqual({ kind: 'exited' });
+    expect(onActionError).toHaveBeenCalled();
+  });
+});
+
+describe('navigateMenu — one-shot mode with errors', () => {
+  it('returns action-error when action throws in one-shot mode', async () => {
+    const onActionError = vi.fn();
+    const leaf: MenuNode = {
+      label: 'Boom',
+      command: 'boom',
+      action: () => {
+        throw new Error('kaboom');
+      },
+    };
+
+    queuePicks(leaf);
+    const result = await navigateMenu({
+      menu: [leaf],
+      theme: baseTheme,
+      interactive: 'one-shot',
+      onActionError,
+    });
+
+    expect(result.kind).toBe('action-error');
+    if (result.kind === 'action-error') {
+      expect(result.command).toBe('boom');
+      expect(result.error).toBeInstanceOf(Error);
+    }
+    expect(onActionError).toHaveBeenCalledOnce();
   });
 });

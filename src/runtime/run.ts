@@ -46,10 +46,15 @@ export async function run(config: CLIConfig, argv: readonly string[]): Promise<n
           theme,
           ...(config.theme !== undefined ? { themeConfig: config.theme } : {}),
           rootMessage: config.name,
+          ...(config.interactive !== undefined ? { interactive: config.interactive } : {}),
+          ...(config.onActionError !== undefined ? { onActionError: config.onActionError } : {}),
         });
         if (result.kind === 'cancelled') {
           cancel(theme.messages.cancel);
           return EXIT_CANCELLED;
+        }
+        if (result.kind === 'action-error') {
+          return EXIT_ERROR;
         }
         return EXIT_OK;
       }
@@ -63,7 +68,23 @@ export async function run(config: CLIConfig, argv: readonly string[]): Promise<n
               args: routed.args,
               ...(config.theme !== undefined ? { theme: config.theme } : {}),
             });
-            await routed.leaf.action(ctx);
+            try {
+              await routed.leaf.action(ctx);
+            } catch (err) {
+              if (config.onActionError !== undefined) {
+                try {
+                  await config.onActionError(err, {
+                    command: routed.command,
+                    args: routed.args,
+                  });
+                } catch {
+                  // Swallow handler errors so they cannot mask the original failure.
+                }
+              } else {
+                process.stderr.write(`${theme.messages.error}\n`);
+              }
+              return EXIT_ERROR;
+            }
             return EXIT_OK;
           }
           case 'unknown-command': {
@@ -95,8 +116,15 @@ export async function run(config: CLIConfig, argv: readonly string[]): Promise<n
     }
   } catch (err) {
     restoreTerminal();
-    const message = err instanceof Error ? err.message : String(err);
-    process.stderr.write(`${theme.messages.error}: ${message}\n`);
+    if (config.onActionError !== undefined) {
+      try {
+        await config.onActionError(err, { command: '<run>', args: {} });
+      } catch {
+        // Handler errors are swallowed; the original failure already produced the exit code.
+      }
+    } else {
+      process.stderr.write(`${theme.messages.error}\n`);
+    }
     return EXIT_ERROR;
   }
 }

@@ -180,7 +180,7 @@ describe('run — interactive menu mode', () => {
 });
 
 describe('run — action throws', () => {
-  it('returns 1 and writes error to stderr when action throws', async () => {
+  it('returns 1 and writes generic error message (not the raw err.message)', async () => {
     const cfg: CLIConfig = {
       name: 'mycli',
       mode: 'argv-only',
@@ -189,7 +189,7 @@ describe('run — action throws', () => {
           label: 'Boom',
           command: 'boom',
           action: () => {
-            throw new Error('kaboom');
+            throw new Error('kaboom internal secret');
           },
         },
       ],
@@ -197,7 +197,40 @@ describe('run — action throws', () => {
     const code = await run(cfg, ['boom']);
     expect(code).toBe(1);
     const stderrCalls = stderr.mock.calls.map((c: unknown[]) => String(c[0])).join('');
-    expect(stderrCalls).toContain('kaboom');
+    // The raw error must not be exposed to end users by default.
+    expect(stderrCalls).not.toContain('kaboom');
+    // The generic themed error message is what surfaces.
+    expect(stderrCalls).toContain('Algo deu errado');
+  });
+
+  it('calls onActionError handler with the original error and context', async () => {
+    const handler = vi.fn();
+    const cfg: CLIConfig = {
+      name: 'mycli',
+      mode: 'argv-only',
+      onActionError: handler,
+      menu: [
+        {
+          label: 'Boom',
+          command: 'boom',
+          args: { x: { type: 'string', required: true } },
+          action: () => {
+            throw new Error('internal failure');
+          },
+        },
+      ],
+    };
+    const code = await run(cfg, ['boom', '--x', 'value']);
+    expect(code).toBe(1);
+    expect(handler).toHaveBeenCalledOnce();
+    const call = handler.mock.calls[0] as [unknown, { command: string; args: Record<string, unknown> }];
+    expect(call[0]).toBeInstanceOf(Error);
+    expect((call[0] as Error).message).toBe('internal failure');
+    expect(call[1]).toEqual({ command: 'boom', args: { x: 'value' } });
+
+    // Handler suppresses default stderr output.
+    const stderrCalls = stderr.mock.calls.map((c: unknown[]) => String(c[0])).join('');
+    expect(stderrCalls).not.toContain('Algo deu errado');
   });
 });
 

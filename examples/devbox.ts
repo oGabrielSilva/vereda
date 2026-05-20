@@ -72,6 +72,14 @@ const config = defineCLI({
     symbols: { active: '▸', inactive: '·' },
   },
 
+  // Custom error handling: show a one-line friendly message and where it failed.
+  // The raw error never reaches the user; we'd typically send it to a log file
+  // or telemetry in production.
+  onActionError: (err, errCtx) => {
+    const msg = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`\n  [${errCtx.command}] não pôde concluir: ${msg}\n\n`);
+  },
+
   menu: [
     defineMenuItem({
       label: 'Build',

@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Interactive menu now **loops** after each action (returns to the same menu level instead of exiting). The CLI terminates only on `Sair` at root or `Ctrl+C`. Opt out with `interactive: 'one-shot'` for wizard-style flows.
+- Raw `err.message` is no longer printed to end-users when an action throws. The library shows a generic `theme.messages.error` string. Use `onActionError(err, ctx)` to handle errors programmatically.
+
 ### Added
 
+- `interactive: 'loop' | 'one-shot'` field on `defineCLI` config.
+- `onActionError` callback on `defineCLI` config — robust error API: receives `(err, { command, args })` so consumers can route errors to logging / telemetry / user-friendly messages without exposing internals.
 - `defineCLI` and `defineMenuItem` with per-leaf inference of `ctx.args`.
 - Config validation at load: duplicate commands, empty submenus, reserved commands, theme color/symbol checks, deep nesting warnings.
 - Argv routing via `mri` with boolean / string / enum coercion and required-arg checks.

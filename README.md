@@ -111,6 +111,36 @@ Validates the config, applies the theme, picks a mode, executes, and returns an 
 | `2`  | Config invalid or TTY required           |
 | `130`| User cancelled (Ctrl+C)                  |
 
+### `interactive: 'loop' | 'one-shot'`
+
+Controls what happens after an action finishes in the menu. Default `'loop'`.
+
+- **`'loop'`** (default) — the menu redraws and waits for the next pick; the only ways to exit are `Sair` at root or `Ctrl+C`. Use this for dashboards / repl-style helpers.
+- **`'one-shot'`** — the CLI terminates after the first action (success or failure). Use this for wizards that do one thing and exit.
+
+```ts
+defineCLI({ interactive: 'one-shot', /* … */ });
+```
+
+### `onActionError(error, ctx)`
+
+The library **never prints raw error messages to end-users**. When an action throws:
+
+- If `onActionError` is provided, it is called with the original error and `{ command, args }`. You decide whether to log, retry, send to telemetry, or show a friendly message via `ctx.log`.
+- If not provided, the library prints `theme.messages.error` (a generic, translatable string — defaults to `"Algo deu errado."`) and continues per `interactive` mode.
+
+```ts
+defineCLI({
+  onActionError: (err, { command }) => {
+    log.warn(`Comando ${command} falhou; tente de novo.`);
+    sendToTelemetry(err);
+  },
+  /* … */
+});
+```
+
+In loop mode, the menu continues; in one-shot mode (or argv routing), the CLI exits with code `1`.
+
 ### `ctx`
 
 Each action receives a context:

@@ -90,6 +90,15 @@ export interface ThemeConfig {
 
 export type CliMode = 'auto' | 'interactive-only' | 'argv-only';
 
+export type InteractiveBehavior = 'loop' | 'one-shot';
+
+export interface ActionErrorContext {
+  readonly command: string;
+  readonly args: Readonly<Record<string, unknown>>;
+}
+
+export type ActionErrorHandler = (error: unknown, ctx: ActionErrorContext) => void | Promise<void>;
+
 /**
  * Leaf node: terminates with an action callback.
  *
@@ -121,5 +130,20 @@ export interface CLIConfig {
   readonly name: string;
   readonly menu: readonly MenuNode[];
   readonly mode?: CliMode;
+  /**
+   * How the interactive menu behaves after an action finishes.
+   * - `'loop'` (default): return to the same menu level; only Sair or Ctrl+C terminates.
+   * - `'one-shot'`: terminate after the first action (success or failure).
+   */
+  readonly interactive?: InteractiveBehavior;
+  /**
+   * Called when an action throws. Receives the error and the command/args context.
+   *
+   * The library never prints `err.message` to end-users; provide this handler to
+   * surface a friendly message (typically via your own logging) or to send the
+   * error to telemetry. Without a handler, the library logs `theme.messages.error`
+   * (a generic, translatable string) and continues per the `interactive` mode.
+   */
+  readonly onActionError?: ActionErrorHandler;
   readonly theme?: ThemeConfig;
 }
