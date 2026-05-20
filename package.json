@@ -2,7 +2,7 @@
   "name": "vereda",
   "packageManager": "yarn@4.6.0",
   "type": "module",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "license": "MIT",
   "description": "Declarative interactive CLI builder over @clack/core. Define a menu config, get a navigable arrow-key UI with safe action execution and argv routing.",
   "author": "Gabriel Silva",
@@ -58,7 +58,8 @@
     "example:basic": "tsx examples/basic.ts",
     "example:spinner": "tsx examples/with-spinner.ts",
     "example:argv": "tsx examples/argv-router.ts",
-    "example:themed": "tsx examples/themed.ts"
+    "example:themed": "tsx examples/themed.ts",
+    "example:devbox": "tsx examples/devbox.ts"
   },
   "dependencies": {
     "@clack/core": "^1.3.1",
