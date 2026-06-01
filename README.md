@@ -232,7 +232,7 @@ vereda is the only one that bundles config → menu → argv → safe execution 
 - Theme covers the menu select prompt. Secondary prompts for arg collection (text, confirm, select-of-enum) use `@clack/prompts` defaults — only `messages` and `keyAliases` cross over via `updateSettings`.
 - No auto-generated `--help` per leaf; the lib prints a flat command list in non-TTY contexts.
 - Single-command-string identifiers (`deploy`, `config:edit`). No nested namespacing like `aws s3 cp`.
-- Optional `node-pty` dependency for E2E tests is unreliable on Windows and is skipped there.
+- The optional `node-pty` dependency drives the E2E smoke tests; it is reliable in CI only on Linux, so those tests run there and are skipped on Windows and macOS. Unit and integration tests cover behavior on all platforms.
 
 ## License
 

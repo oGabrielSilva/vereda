@@ -36,17 +36,32 @@ const noop = () => undefined;
 let stderr: ReturnType<typeof vi.spyOn>;
 let stdout: ReturnType<typeof vi.spyOn>;
 
+// Interactivity is decided by TTY flags AND the absence of CI / FORCE_NO_TTY.
+// The runner sets CI=true, which would force the "non-interactive" branch even
+// when a test stubs isTTY=true. Neutralize those flags here so interactivity is
+// driven solely by the isTTY stubs each test sets; restore afterwards.
+let savedCi: string | undefined;
+let savedForceNoTty: string | undefined;
+
 beforeEach(() => {
   Object.values(mocks).forEach((m) => {
     if (typeof m === 'function' && 'mockReset' in m) m.mockReset();
   });
   stderr = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
   stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+  savedCi = process.env.CI;
+  savedForceNoTty = process.env.FORCE_NO_TTY;
+  delete process.env.CI;
+  delete process.env.FORCE_NO_TTY;
 });
 
 afterEach(() => {
   stderr.mockRestore();
   stdout.mockRestore();
+  if (savedCi === undefined) delete process.env.CI;
+  else process.env.CI = savedCi;
+  if (savedForceNoTty === undefined) delete process.env.FORCE_NO_TTY;
+  else process.env.FORCE_NO_TTY = savedForceNoTty;
 });
 
 describe('run — config validation', () => {

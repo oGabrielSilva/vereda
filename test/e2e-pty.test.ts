@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-const skipReason = process.platform === 'win32' ? 'node-pty unreliable on win32' : '';
+// node-pty is a native addon that is reliable in CI only on Linux. On Windows it
+// is flaky, and on macOS runners the spawn fails (posix_spawnp). Restrict the
+// pty smoke test to Linux; unit/integration tests cover behavior on all OSes.
+const skipReason = process.platform === 'linux' ? '' : `node-pty unreliable on ${process.platform}`;
 
 // node-pty is an optional dep; skip everything if it failed to install.
 const ptyModule = await (async () => {
