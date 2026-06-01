@@ -17,9 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Trusted publishing (OIDC) requires Node >= 22.14 and npm >= 11.5.1.
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           registry-url: 'https://registry.npmjs.org'
 
       - name: Enable Corepack
@@ -31,5 +32,7 @@ jobs:
       - name: Build
         run: yarn build
 
+      # No NODE_AUTH_TOKEN: auth comes from the OIDC trusted publisher configured
+      # on npmjs.com for this repo + workflow. npm 11.5.1+ uses it automatically.
       - name: Publish (provenance via OIDC)
         run: npm publish --provenance --access public
