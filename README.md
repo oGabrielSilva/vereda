@@ -1,4 +1,4 @@
-# vereda
+# vereda-cli
 
 > Declarative interactive CLI builder for Node. Define a menu config; get a navigable arrow-key UI with safe action execution, argv routing, and a typed action context.
 
@@ -13,16 +13,16 @@ Built on top of [`@clack/core`](https://github.com/bombshell-dev/clack). Adds:
 ## Install
 
 ```sh
-yarn add vereda
+yarn add vereda-cli
 # or
-npm install vereda
+npm install vereda-cli
 ```
 
 ## Quickstart
 
 ```ts
 // cli-config.ts
-import { defineCLI, defineMenuItem } from 'vereda';
+import { defineCLI, defineMenuItem } from 'vereda-cli';
 
 export default defineCLI({
   name: 'mycli',
@@ -61,7 +61,7 @@ export default defineCLI({
 // bin.ts
 #!/usr/bin/env node
 import config from './cli-config.js';
-import { run } from 'vereda';
+import { run } from 'vereda-cli';
 
 process.exit(await run(config, process.argv.slice(2)));
 ```
@@ -214,8 +214,8 @@ defineCLI({
 
 ## Comparison
 
-|                                  | vereda | citty | cac    | @clack/prompts |
-| -------------------------------- | ------ | ----- | ------ | -------------- |
+|                                  | vereda-cli | citty | cac    | @clack/prompts |
+| -------------------------------- | ---------- | ----- | ------ | -------------- |
 | declarative config               | ✔      | ✔     | ✔      | ✘ (imperative) |
 | interactive navigable menu       | ✔      | ✘     | ✘      | ✔ (manual)     |
 | argv routing                     | ✔      | ✔     | ✔      | ✘              |
@@ -225,7 +225,7 @@ defineCLI({
 | zero-config CI mode              | ✔      | ✘     | ✘      | ✘              |
 | ESM-only, < 5 runtime deps       | ✔      | ✔     | ✔      | ✘              |
 
-vereda is the only one that bundles config → menu → argv → safe execution as one product.
+vereda-cli is the only one that bundles config → menu → argv → safe execution as one product.
 
 ## Limitations (v0.1)
 

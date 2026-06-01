@@ -21,7 +21,7 @@ const config = defineCLI({
       hint: 'ação simples',
       command: 'hello',
       action: (ctx) => {
-        ctx.log.info('Hello from a themed vereda CLI.');
+        ctx.log.info('Hello from a themed vereda-cli CLI.');
       },
     }),
     defineMenuItem({

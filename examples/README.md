@@ -8,7 +8,7 @@ Run from the project root.
 yarn example:devbox
 ```
 
-A multi-purpose dev helper. The closest thing to "what a real vereda CLI looks like":
+A multi-purpose dev helper. The closest thing to "what a real vereda-cli CLI looks like":
 
 - **3 levels** of menu nesting (`Git → Stash → List/Push`)
 - **12 leaf actions** across **4 submenus**
@@ -42,4 +42,4 @@ yarn example:argv      # argv-only mode with enum + required args
 yarn example:themed    # custom colors + symbols
 ```
 
-Each script imports from `../src/define-cli.ts` for development convenience. In a real consumer project you would install vereda from npm and import from `'vereda'`.
+Each script imports from `../src/define-cli.ts` for development convenience. In a real consumer project you would install vereda-cli from npm and import from `'vereda-cli'`.

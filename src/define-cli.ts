@@ -12,7 +12,7 @@ import type { ArgsSchema, CLIConfig, MenuLeaf } from './types.js';
  *
  * @example
  * ```ts
- * import { defineCLI, defineMenuItem } from 'vereda';
+ * import { defineCLI, defineMenuItem } from 'vereda-cli';
  *
  * export default defineCLI({
  *   name: 'mycli',

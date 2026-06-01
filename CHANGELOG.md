@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-06-01
+
 ### Changed
 
 - Minimum supported Node bumped to **20** (`engines.node >= 20`). Node 18 is EOL since April 2025, and the test toolchain (Vitest 4 / Rolldown) requires `node:util.styleText`, which only exists on Node 20+. Build target is now `node20`.

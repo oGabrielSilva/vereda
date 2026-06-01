@@ -2859,9 +2859,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vereda@workspace:.":
+"vereda-cli@workspace:.":
   version: 0.0.0-use.local
-  resolution: "vereda@workspace:."
+  resolution: "vereda-cli@workspace:."
   dependencies:
     "@clack/core": "npm:^1.3.1"
     "@clack/prompts": "npm:^1.4.0"

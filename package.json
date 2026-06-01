@@ -1,18 +1,18 @@
 {
-  "name": "vereda",
+  "name": "vereda-cli",
   "packageManager": "yarn@4.6.0",
   "type": "module",
-  "version": "0.0.18",
+  "version": "0.1.0",
   "license": "MIT",
   "description": "Declarative interactive CLI builder over @clack/core. Define a menu config, get a navigable arrow-key UI with safe action execution and argv routing.",
   "author": "Gabriel Silva",
-  "homepage": "https://github.com/oGabrielSilva/vereda#readme",
+  "homepage": "https://github.com/oGabrielSilva/vereda-cli#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/oGabrielSilva/vereda.git"
+    "url": "git+https://github.com/oGabrielSilva/vereda-cli.git"
   },
   "bugs": {
-    "url": "https://github.com/oGabrielSilva/vereda/issues"
+    "url": "https://github.com/oGabrielSilva/vereda-cli/issues"
   },
   "main": "./dist/define-cli.js",
   "types": "./dist/define-cli.d.ts",

@@ -1,5 +1,5 @@
 /**
- * Flagship vereda demo: a multi-purpose dev helper.
+ * Flagship vereda-cli demo: a multi-purpose dev helper.
  *
  * Demonstrates:
  *   - Three-level menu tree with mixed branches and leaves at each level
