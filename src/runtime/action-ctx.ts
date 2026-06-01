@@ -13,6 +13,8 @@ import type {
 export interface CreateCtxOpts {
   readonly command: string;
   readonly args: Readonly<Record<string, unknown>>;
+  readonly positionals?: readonly string[];
+  readonly rest?: Readonly<Record<string, unknown>>;
   readonly theme?: ThemeConfig;
 }
 
@@ -28,6 +30,8 @@ export function createCtx<TArgs extends ArgsSchema>(opts: CreateCtxOpts): Action
   return {
     args: opts.args as InferArgs<TArgs>,
     command: opts.command,
+    _: opts.positionals ?? [],
+    rest: opts.rest ?? {},
 
     confirm: async ({ message, initialValue }) => {
       const result = await confirm(

@@ -3,11 +3,27 @@
  *
  * Boolean args are always optional (`required?: false`); presence in argv toggles them on.
  * String and enum args may be marked `required: true`.
+ *
+ * `prompt` controls whether the interactive menu asks for this arg:
+ * - omitted (default): prompt only when `required: true` and the value did not come from argv.
+ * - `true`: always prompt (when not already provided via argv).
+ * - `false`: never prompt; fall back to `default` (string) or leave undefined.
+ * Booleans default to never prompting (set `prompt: true` to opt in).
  */
 export type ArgDef =
-  | { readonly type: 'boolean'; readonly required?: false }
-  | { readonly type: 'string'; readonly required?: boolean; readonly default?: string }
-  | { readonly type: 'enum'; readonly options: readonly string[]; readonly required?: boolean };
+  | { readonly type: 'boolean'; readonly required?: false; readonly prompt?: boolean }
+  | {
+      readonly type: 'string';
+      readonly required?: boolean;
+      readonly default?: string;
+      readonly prompt?: boolean;
+    }
+  | {
+      readonly type: 'enum';
+      readonly options: readonly string[];
+      readonly required?: boolean;
+      readonly prompt?: boolean;
+    };
 
 export type ArgsSchema = Readonly<Record<string, ArgDef>>;
 
@@ -43,6 +59,17 @@ export interface ActionLog {
 export interface ActionContext<TArgs extends ArgsSchema = Record<string, never>> {
   readonly args: InferArgs<TArgs>;
   readonly command: string;
+  /**
+   * Raw positional arguments from argv (after the command token). Empty when the
+   * action was reached through the interactive menu without argv.
+   */
+  readonly _: readonly string[];
+  /**
+   * Flags present in argv but not declared in the leaf's `args` schema. Always
+   * empty unless `defineCLI({ strict: false })`; otherwise undeclared flags are
+   * rejected before the action runs.
+   */
+  readonly rest: Readonly<Record<string, unknown>>;
   confirm(opts: { message: string; initialValue?: boolean }): Promise<boolean>;
   spinner(message?: string): ActionSpinner;
   readonly log: ActionLog;
@@ -145,5 +172,11 @@ export interface CLIConfig {
    * (a generic, translatable string) and continues per the `interactive` mode.
    */
   readonly onActionError?: ActionErrorHandler;
+  /**
+   * Argv parsing strictness. Default `true`: a flag not declared in the matched
+   * leaf's `args` schema is an error. Set `false` to accept undeclared flags and
+   * expose them on `ctx.rest` (and positionals on `ctx._`) for the action to read.
+   */
+  readonly strict?: boolean;
   readonly theme?: ThemeConfig;
 }

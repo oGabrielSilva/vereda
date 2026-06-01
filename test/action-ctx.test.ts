@@ -26,6 +26,23 @@ describe('createCtx — args and command passthrough', () => {
     expect(ctx.command).toBe('build');
     expect(ctx.args).toEqual({ watch: true, target: 'esm' });
   });
+
+  it('exposes positionals on _ and undeclared flags on rest', () => {
+    const ctx = createCtx({
+      command: 'zip',
+      args: { path: 'x' },
+      positionals: ['Ingram/330'],
+      rest: { verbose: true },
+    });
+    expect(ctx._).toEqual(['Ingram/330']);
+    expect(ctx.rest).toEqual({ verbose: true });
+  });
+
+  it('defaults _ to [] and rest to {} when omitted', () => {
+    const ctx = createCtx({ command: 'x', args: {} });
+    expect(ctx._).toEqual([]);
+    expect(ctx.rest).toEqual({});
+  });
 });
 
 describe('createCtx.confirm', () => {

@@ -211,3 +211,30 @@ describe('routeArgs — string default values', () => {
     }
   });
 });
+
+describe('routeArgs — strict mode, positionals and rest', () => {
+  const strictCfg: CLIConfig = {
+    name: 'x',
+    menu: [{ label: 'Zip', command: 'zip', args: { path: { type: 'string' } }, action: noop }],
+  };
+  const looseCfg: CLIConfig = { ...strictCfg, strict: false };
+
+  it('rejects undeclared flags by default (strict)', () => {
+    const result = routeArgs(strictCfg, ['zip', '--path', 'x', '--verbose']);
+    expect(result.kind).toBe('arg-error');
+    if (result.kind === 'arg-error') expect(result.argName).toBe('verbose');
+  });
+
+  it('accepts undeclared flags into rest when strict:false', () => {
+    const result = routeArgs(looseCfg, ['zip', '--path', 'x', '--verbose']);
+    if (result.kind !== 'matched') throw new Error('expected matched');
+    expect(result.args).toEqual({ path: 'x' });
+    expect(result.rest).toEqual({ verbose: true });
+  });
+
+  it('exposes positionals on the matched result, dropping the command', () => {
+    const result = routeArgs(looseCfg, ['zip', 'Ingram/330']);
+    if (result.kind !== 'matched') throw new Error('expected matched');
+    expect(result.positionals).toEqual(['Ingram/330']);
+  });
+});

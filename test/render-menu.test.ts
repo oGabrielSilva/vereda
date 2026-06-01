@@ -172,12 +172,36 @@ describe('navigateMenu — submenu navigation', () => {
 });
 
 describe('navigateMenu — args collection (one-shot)', () => {
-  it('collects boolean arg before running action', async () => {
+  it('does NOT prompt boolean args by default (presence-in-argv toggles them)', async () => {
     const action = vi.fn();
     const leaf: MenuNode = {
       label: 'Build',
       command: 'build',
       args: { watch: { type: 'boolean' } },
+      action,
+    };
+
+    queuePicks(leaf);
+
+    const result = await navigateMenu({
+      menu: [leaf],
+      theme: baseTheme,
+      interactive: 'one-shot',
+    });
+
+    expect(result.kind).toBe('completed');
+    expect(action).toHaveBeenCalledOnce();
+    expect(mocks.confirm).not.toHaveBeenCalled();
+    const ctx = action.mock.calls[0]?.[0] as { args: Record<string, unknown> };
+    expect(ctx.args).toEqual({});
+  });
+
+  it('prompts a boolean arg only when prompt:true', async () => {
+    const action = vi.fn();
+    const leaf: MenuNode = {
+      label: 'Build',
+      command: 'build',
+      args: { watch: { type: 'boolean', prompt: true } },
       action,
     };
 
@@ -191,7 +215,7 @@ describe('navigateMenu — args collection (one-shot)', () => {
     });
 
     expect(result.kind).toBe('completed');
-    expect(action).toHaveBeenCalledOnce();
+    expect(mocks.confirm).toHaveBeenCalledOnce();
     const ctx = action.mock.calls[0]?.[0] as { args: Record<string, unknown> };
     expect(ctx.args).toEqual({ watch: true });
   });
@@ -224,7 +248,7 @@ describe('navigateMenu — args collection (one-shot)', () => {
     const leaf: MenuNode = {
       label: 'X',
       command: 'x',
-      args: { foo: { type: 'string' } },
+      args: { foo: { type: 'string', required: true } },
       action,
     };
 
@@ -379,5 +403,179 @@ describe('navigateMenu — one-shot mode with errors', () => {
       expect(result.error).toBeInstanceOf(Error);
     }
     expect(onActionError).toHaveBeenCalledOnce();
+  });
+});
+
+describe('navigateMenu — argv pre-fills args (catch-22 fix)', () => {
+  it('does NOT prompt an optional arg, and never prompts it (no argv)', async () => {
+    const action = vi.fn();
+    const leaf: MenuNode = {
+      label: 'Zip',
+      command: 'zip',
+      args: { path: { type: 'string' } }, // optional
+      action,
+    };
+
+    queuePicks(leaf);
+    const result = await navigateMenu({ menu: [leaf], theme: baseTheme, interactive: 'one-shot' });
+
+    expect(result.kind).toBe('completed');
+    expect(mocks.text).not.toHaveBeenCalled();
+    const ctx = action.mock.calls[0]?.[0] as { args: Record<string, unknown> };
+    expect(ctx.args).toEqual({});
+  });
+
+  it('pre-fills a declared arg from argv when the command matches (no prompt)', async () => {
+    const action = vi.fn();
+    const leaf: MenuNode = {
+      label: 'Zip',
+      command: 'zip',
+      args: { path: { type: 'string', required: true } },
+      action,
+    };
+
+    queuePicks(leaf);
+    const result = await navigateMenu({
+      menu: [leaf],
+      theme: baseTheme,
+      interactive: 'one-shot',
+      argv: ['zip', '--path', 'Ingram/330'],
+    });
+
+    expect(result.kind).toBe('completed');
+    expect(mocks.text).not.toHaveBeenCalled(); // required but provided → no prompt
+    const ctx = action.mock.calls[0]?.[0] as { args: Record<string, unknown> };
+    expect(ctx.args).toEqual({ path: 'Ingram/330' });
+  });
+
+  it('does NOT bleed argv from one command into a different leaf', async () => {
+    const action = vi.fn();
+    const other: MenuNode = {
+      label: 'Other',
+      command: 'other',
+      args: { path: { type: 'string' } },
+      action,
+    };
+
+    queuePicks(other);
+    await navigateMenu({
+      menu: [other],
+      theme: baseTheme,
+      interactive: 'one-shot',
+      argv: ['zip', '--path', 'X'], // argv targets "zip", not "other"
+    });
+
+    const ctx = action.mock.calls[0]?.[0] as { args: Record<string, unknown> };
+    expect(ctx.args).toEqual({});
+  });
+
+  it('exposes positionals on ctx._ and undeclared flags on ctx.rest (strict:false)', async () => {
+    const action = vi.fn();
+    const leaf: MenuNode = { label: 'Zip', command: 'zip', action };
+
+    queuePicks(leaf);
+    await navigateMenu({
+      menu: [leaf],
+      theme: baseTheme,
+      interactive: 'one-shot',
+      strict: false,
+      argv: ['zip', 'Ingram/330', '--verbose'],
+    });
+
+    const ctx = action.mock.calls[0]?.[0] as {
+      _: readonly string[];
+      rest: Record<string, unknown>;
+    };
+    expect(ctx._).toEqual(['Ingram/330']);
+    expect(ctx.rest).toEqual({ verbose: true });
+  });
+});
+
+describe('navigateMenu — prompt control & silent default', () => {
+  it('never prompts when prompt:false, even if required', async () => {
+    const action = vi.fn();
+    const leaf: MenuNode = {
+      label: 'X',
+      command: 'x',
+      args: { token: { type: 'string', required: true, prompt: false, default: 'abc' } },
+      action,
+    };
+
+    queuePicks(leaf);
+    const result = await navigateMenu({ menu: [leaf], theme: baseTheme, interactive: 'one-shot' });
+
+    expect(result.kind).toBe('completed');
+    expect(mocks.text).not.toHaveBeenCalled();
+    const ctx = action.mock.calls[0]?.[0] as { args: Record<string, unknown> };
+    expect(ctx.args).toEqual({ token: 'abc' });
+  });
+
+  it('uses a string default silently for an optional arg (no prompt)', async () => {
+    const action = vi.fn();
+    const leaf: MenuNode = {
+      label: 'X',
+      command: 'x',
+      args: { region: { type: 'string', default: 'us-east-1' } },
+      action,
+    };
+
+    queuePicks(leaf);
+    await navigateMenu({ menu: [leaf], theme: baseTheme, interactive: 'one-shot' });
+
+    expect(mocks.text).not.toHaveBeenCalled();
+    const ctx = action.mock.calls[0]?.[0] as { args: Record<string, unknown> };
+    expect(ctx.args).toEqual({ region: 'us-east-1' });
+  });
+
+  it('forces a prompt when prompt:true on an optional arg', async () => {
+    const action = vi.fn();
+    const leaf: MenuNode = {
+      label: 'X',
+      command: 'x',
+      args: { note: { type: 'string', prompt: true } },
+      action,
+    };
+
+    queuePicks(leaf);
+    mocks.text.mockResolvedValueOnce('hi');
+    await navigateMenu({ menu: [leaf], theme: baseTheme, interactive: 'one-shot' });
+
+    expect(mocks.text).toHaveBeenCalledOnce();
+    const ctx = action.mock.calls[0]?.[0] as { args: Record<string, unknown> };
+    expect(ctx.args).toEqual({ note: 'hi' });
+  });
+});
+
+describe('navigateMenu — terminal restore around action (loop)', () => {
+  it('restores cursor + raw mode after each action in loop mode', async () => {
+    const action = vi.fn();
+    const leaf: MenuNode = { label: 'Build', command: 'build', action };
+
+    // stub a TTY so restoreTerminal does its work. setRawMode may not exist on
+    // stdin in the test environment, so define it before spying.
+    const origStdin = process.stdin.isTTY;
+    const origStdout = process.stdout.isTTY;
+    const origRawDesc = Object.getOwnPropertyDescriptor(process.stdin, 'setRawMode');
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
+    Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true });
+    const setRawMode = vi.fn(() => process.stdin);
+    Object.defineProperty(process.stdin, 'setRawMode', { value: setRawMode, configurable: true });
+    const write = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+    // pick the leaf once, then Sair
+    queuePicks(leaf);
+    await navigateMenu({ menu: [leaf], theme: baseTheme, interactive: 'loop' });
+
+    expect(setRawMode).toHaveBeenCalledWith(false);
+    expect(write).toHaveBeenCalledWith('\x1B[?25h');
+
+    write.mockRestore();
+    Object.defineProperty(process.stdin, 'isTTY', { value: origStdin, configurable: true });
+    Object.defineProperty(process.stdout, 'isTTY', { value: origStdout, configurable: true });
+    if (origRawDesc) {
+      Object.defineProperty(process.stdin, 'setRawMode', origRawDesc);
+    } else {
+      delete (process.stdin as { setRawMode?: unknown }).setRawMode;
+    }
   });
 });

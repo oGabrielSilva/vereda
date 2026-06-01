@@ -192,6 +192,32 @@ describe('run — interactive menu mode', () => {
     Object.defineProperty(process.stdin, 'isTTY', { value: origStdin, configurable: true });
     Object.defineProperty(process.stdout, 'isTTY', { value: origStdout, configurable: true });
   });
+
+  it('passes argv and strict through to navigateMenu', async () => {
+    const cfg: CLIConfig = {
+      name: 'mycli',
+      mode: 'interactive-only',
+      strict: false,
+      menu: [{ label: 'X', command: 'x', action: noop }],
+    };
+    const origStdin = process.stdin.isTTY;
+    const origStdout = process.stdout.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
+    Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true });
+
+    mocks.navigateMenu.mockResolvedValueOnce({ kind: 'exited' });
+    await run(cfg, ['x', '--path', 'p']);
+
+    const passed = mocks.navigateMenu.mock.calls[0]?.[0] as {
+      argv: readonly string[];
+      strict: boolean;
+    };
+    expect(passed.argv).toEqual(['x', '--path', 'p']);
+    expect(passed.strict).toBe(false);
+
+    Object.defineProperty(process.stdin, 'isTTY', { value: origStdin, configurable: true });
+    Object.defineProperty(process.stdout, 'isTTY', { value: origStdout, configurable: true });
+  });
 });
 
 describe('run — action throws', () => {

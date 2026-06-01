@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-01
+
+Resolves the interactive↔argv "catch-22" from real-world feedback: an arg can now
+be accepted via argv yet not prompted in the menu.
+
+### Changed
+
+- **Interactive menu only prompts what's missing.** Previously every declared arg
+  was prompted regardless of `required`. Now the menu prompts an arg only when it
+  is `required` and was not supplied via argv. This is a behavior change for
+  consumers who relied on optional args being prompted — opt back in per-arg with
+  `prompt: true`.
+- **Boolean args are no longer prompted by default** (matching the documented
+  "presence in argv toggles them on"). Opt in with `prompt: true`.
+- **`default` on a string arg is now applied silently** when the arg is not
+  provided and not prompted, instead of pre-filling a prompt that still asked.
+
+### Added
+
+- `prompt?: boolean` on `ArgDef`: `true` always prompts, `false` never prompts
+  (falls back to `default`/undefined); omitted keeps the new default behavior.
+- `defineCLI({ strict?: boolean })` (default `true`). With `strict: false`,
+  undeclared argv flags are accepted instead of rejected and surface on `ctx.rest`.
+- `ctx._` (raw positional arguments, command token dropped) and `ctx.rest`
+  (undeclared flags) on the action context, so actions can read argv the schema
+  doesn't model — no more manual `process.argv` parsing.
+- Interactive menu now pre-fills a leaf's args from argv when the argv command
+  matches that leaf; pre-filled args are never prompted.
+- Terminal state (cursor + raw mode) is now restored around every action in
+  `loop` mode, so an action that opens its own prompts can't leave the terminal
+  stuck for the next menu render.
+- Config validation warns (`required_never_prompted`) when an arg is `required`
+  with `prompt: false` and no `default` — it could never be filled interactively.
+
 ## [0.1.0] - 2026-06-01
 
 ### Changed

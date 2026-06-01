@@ -5,6 +5,7 @@ import { validateConfig } from '../validate/config.js';
 import { createCtx } from './action-ctx.js';
 import { navigateMenu } from './render-menu.js';
 import { routeArgs } from './route-args.js';
+import { restoreTerminal } from './terminal.js';
 import { detectMode, printPlainHelp } from './tty.js';
 
 const EXIT_OK = 0;
@@ -46,6 +47,8 @@ export async function run(config: CLIConfig, argv: readonly string[]): Promise<n
           theme,
           ...(config.theme !== undefined ? { themeConfig: config.theme } : {}),
           rootMessage: config.name,
+          argv,
+          strict: config.strict ?? true,
           ...(config.interactive !== undefined ? { interactive: config.interactive } : {}),
           ...(config.onActionError !== undefined ? { onActionError: config.onActionError } : {}),
         });
@@ -66,6 +69,8 @@ export async function run(config: CLIConfig, argv: readonly string[]): Promise<n
             const ctx = createCtx({
               command: routed.command,
               args: routed.args,
+              positionals: routed.positionals,
+              rest: routed.rest,
               ...(config.theme !== undefined ? { theme: config.theme } : {}),
             });
             try {
@@ -126,14 +131,5 @@ export async function run(config: CLIConfig, argv: readonly string[]): Promise<n
       process.stderr.write(`${theme.messages.error}\n`);
     }
     return EXIT_ERROR;
-  }
-}
-
-function restoreTerminal(): void {
-  if (process.stdout.isTTY === true) {
-    process.stdout.write('\x1B[?25h');
-  }
-  if (process.stdin.isTTY === true && typeof process.stdin.setRawMode === 'function') {
-    process.stdin.setRawMode(false);
   }
 }

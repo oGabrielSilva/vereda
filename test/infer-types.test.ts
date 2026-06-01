@@ -140,7 +140,7 @@ describe('defineMenuItem args inference', () => {
 });
 
 describe('ActionContext public surface', () => {
-  it('exposes confirm, spinner, log, args, command', () => {
+  it('exposes confirm, spinner, log, args, command, _ and rest', () => {
     type Ctx = ActionContext<{ flag: { type: 'boolean' } }>;
 
     expectTypeOf<Ctx>().toHaveProperty('confirm');
@@ -148,6 +148,29 @@ describe('ActionContext public surface', () => {
     expectTypeOf<Ctx>().toHaveProperty('log');
     expectTypeOf<Ctx>().toHaveProperty('args');
     expectTypeOf<Ctx>().toHaveProperty('command');
+    expectTypeOf<Ctx>().toHaveProperty('_');
+    expectTypeOf<Ctx>().toHaveProperty('rest');
+  });
+
+  it('types _ as readonly string[] and rest as a record', () => {
+    type Ctx = ActionContext;
+    expectTypeOf<Ctx['_']>().toEqualTypeOf<readonly string[]>();
+    expectTypeOf<Ctx['rest']>().toEqualTypeOf<Readonly<Record<string, unknown>>>();
+  });
+
+  it('accepts prompt on ArgDef without changing ctx.args inference', () => {
+    defineMenuItem({
+      label: 'X',
+      command: 'x',
+      args: {
+        path: { type: 'string', prompt: false },
+        watch: { type: 'boolean', prompt: true },
+      },
+      action: (ctx) => {
+        expectTypeOf(ctx.args.path).toEqualTypeOf<string | undefined>();
+        expectTypeOf(ctx.args.watch).toEqualTypeOf<boolean | undefined>();
+      },
+    });
   });
 
   it('spinner returns an object with update, success, error, stop', () => {

@@ -46,6 +46,56 @@ describe('validateConfig — happy path', () => {
   });
 });
 
+describe('validateConfig — arg prompt/required sanity', () => {
+  it('warns when a required arg has prompt:false and no default', () => {
+    const report = validateConfig(
+      makeConfig([
+        {
+          label: 'X',
+          command: 'x',
+          args: { token: { type: 'string', required: true, prompt: false } },
+          action: noop,
+        },
+      ]),
+    );
+    expect(report.errors).toEqual([]);
+    expect(report.warnings).toHaveLength(1);
+    expect(report.warnings[0]?.code).toBe('required_never_prompted');
+  });
+
+  it('does not warn when a required prompt:false arg has a default', () => {
+    const report = validateConfig(
+      makeConfig([
+        {
+          label: 'X',
+          command: 'x',
+          args: { token: { type: 'string', required: true, prompt: false, default: 'abc' } },
+          action: noop,
+        },
+      ]),
+    );
+    expect(report.warnings).toEqual([]);
+  });
+
+  it('does not warn for ordinary optional/required args', () => {
+    const report = validateConfig(
+      makeConfig([
+        {
+          label: 'X',
+          command: 'x',
+          args: {
+            a: { type: 'string', required: true },
+            b: { type: 'string', prompt: false },
+            c: { type: 'boolean' },
+          },
+          action: noop,
+        },
+      ]),
+    );
+    expect(report.warnings).toEqual([]);
+  });
+});
+
 describe('validateConfig — duplicate commands', () => {
   it('errors on duplicate command among siblings', () => {
     const report = validateConfig(

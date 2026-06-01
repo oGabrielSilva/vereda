@@ -101,4 +101,38 @@ describeOrSkip('e2e — interactive navigation (smoke)', () => {
     expect(output).not.toContain('Building');
     expect(output).not.toContain('Running tests');
   }, 15_000);
+
+  it('pre-fills an optional arg from argv and runs the leaf without prompting', async () => {
+    if (pty === null) return;
+
+    const term = pty.spawn(
+      process.execPath,
+      ['--import', 'tsx', 'examples/argv-prefill.ts', 'zip', '--path', 'Ingram/330'],
+      {
+        name: 'xterm-256color',
+        cols: 80,
+        rows: 24,
+        cwd: process.cwd(),
+        env: interactiveEnv(),
+      },
+    );
+
+    let output = '';
+    term.onData((data) => {
+      output += data;
+    });
+    const finished = new Promise<void>((resolve) => {
+      term.onExit(() => resolve());
+    });
+
+    // Menu opens (interactive TTY). "Zip" is the first item — just ENTER.
+    await new Promise((r) => setTimeout(r, 700));
+    term.write('\r');
+    await new Promise((r) => setTimeout(r, 500));
+    term.kill();
+    await finished;
+
+    // Action ran with the argv-provided path, and was NOT asked for it.
+    expect(output).toContain('path=Ingram/330');
+  }, 15_000);
 });

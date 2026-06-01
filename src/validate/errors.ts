@@ -6,7 +6,8 @@ export type ConfigErrorCode =
   | 'reserved_command'
   | 'deep_nesting'
   | 'invalid_color'
-  | 'invalid_symbol';
+  | 'invalid_symbol'
+  | 'required_never_prompted';
 
 /**
  * Structured error for config validation failures.

@@ -149,6 +149,8 @@ Each action receives a context:
 type ActionContext<TArgs> = {
   args: InferArgs<TArgs>;     // typed against the leaf's args schema
   command: string;
+  _: readonly string[];                 // raw positionals (command token dropped)
+  rest: Readonly<Record<string, unknown>>; // undeclared flags (only when strict: false)
   confirm(opts: { message: string; initialValue?: boolean }): Promise<boolean>;
   spinner(message?: string): {
     update(msg: string): void;
@@ -163,6 +165,36 @@ type ActionContext<TArgs> = {
   };
 };
 ```
+
+## Args
+
+A leaf declares typed args via `args`. How an arg behaves in each entry point:
+
+```ts
+args: {
+  path:   { type: 'string' },                          // optional
+  file:   { type: 'string', required: true },          // required
+  env:    { type: 'enum', options: ['prod', 'dev'] },
+  watch:  { type: 'boolean' },                         // toggled by --watch
+  region: { type: 'string', default: 'us-east-1' },    // silent default
+  token:  { type: 'string', required: true, prompt: false }, // never prompted
+}
+```
+
+- **From argv** (`mycli file=... --watch`): values are coerced against the schema. A missing `required` arg is an error; a missing optional `string` with a `default` falls back to it.
+- **In the interactive menu**: an arg is prompted **only when it is `required` and not already supplied via argv**. Optional args and booleans are not prompted by default.
+  - `prompt: true` — always prompt (unless already provided via argv).
+  - `prompt: false` — never prompt; fall back to `default` (string) or leave undefined.
+  - A `string` `default` is applied **silently** (no prompt) when the arg is optional, absent and not prompted.
+- When argv targets a leaf (same `command`), the menu pre-fills that leaf's declared args from argv and skips prompting them. This is the fix for "accepted via argv but never prompted": declare the arg optional and pass `--arg` — it's used, never asked.
+
+### `strict` and raw argv
+
+```ts
+defineCLI({ strict: false, /* … */ });
+```
+
+By default (`strict: true`) a flag not declared in the matched leaf's `args` is an error. With `strict: false`, undeclared flags are accepted and exposed on `ctx.rest`; raw positionals are always on `ctx._` (after the command token). Use them to read argv the schema doesn't model, instead of touching `process.argv` yourself.
 
 ## Modes
 
@@ -227,10 +259,12 @@ defineCLI({
 
 vereda-cli is the only one that bundles config → menu → argv → safe execution as one product.
 
-## Limitations (v0.1)
+## Limitations
 
 - Theme covers the menu select prompt. Secondary prompts for arg collection (text, confirm, select-of-enum) use `@clack/prompts` defaults — only `messages` and `keyAliases` cross over via `updateSettings`.
+- `ctx` exposes `confirm`, `spinner` and `log`. For richer prompts (`select` / `multiselect` / `text`) an action can import `@clack/prompts` directly today; in `loop` mode the terminal is restored around each action so this won't freeze the menu. First-class themed `ctx.select` / `ctx.multiselect` / `ctx.text` are planned.
 - No auto-generated `--help` per leaf; the lib prints a flat command list in non-TTY contexts.
+- Positional args can be read raw via `ctx._`, but cannot yet be *declared* (`positional: true`) — planned.
 - Single-command-string identifiers (`deploy`, `config:edit`). No nested namespacing like `aws s3 cp`.
 - The optional `node-pty` dependency drives the E2E smoke tests; it is reliable in CI only on Linux, so those tests run there and are skipped on Windows and macOS. Unit and integration tests cover behavior on all platforms.
 

@@ -97,6 +97,9 @@ function walkMenu(
         );
       }
       seenCommands.add(leaf.command);
+      if (hasArgs) {
+        validateLeafArgs((node as { args: unknown }).args, nodePath, warnings);
+      }
       continue;
     }
 
@@ -118,6 +121,29 @@ function walkMenu(
         'Nó precisa ter ("command" + "action") ou "children" com pelo menos um item.',
       ),
     );
+  }
+}
+
+function validateLeafArgs(
+  args: unknown,
+  nodePath: readonly string[],
+  warnings: ConfigError[],
+): void {
+  if (typeof args !== 'object' || args === null) return;
+  for (const [name, raw] of Object.entries(args as Record<string, unknown>)) {
+    if (typeof raw !== 'object' || raw === null) continue;
+    const def = raw as { required?: unknown; prompt?: unknown; default?: unknown };
+    // A required arg that never prompts and has no default can never be filled
+    // through the interactive menu — warn so it isn't a silent undefined.
+    if (def.required === true && def.prompt === false && def.default === undefined) {
+      warnings.push(
+        new ConfigError(
+          'required_never_prompted',
+          [...nodePath, name],
+          `Argumento "${name}" é required com prompt:false e sem default — nunca será preenchido no menu interativo.`,
+        ),
+      );
+    }
   }
 }
 
